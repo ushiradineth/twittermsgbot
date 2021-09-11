@@ -30,11 +30,11 @@ filter = new Filter();
 filter.addWords('suspend', 'deactivate', 'suspended', 'deactivated');
 
 // Recursive function for tweet handling !! might not be working
-async function tweet() {
+async function tweet(status) {
     try {
         const tweet = await twitterClient.tweets.statusesUpdate({ status: status });
     } catch {
-        await new Promise(r => setTimeout(r, 30 * 60 * 1000));
+        await new Promise(r => setTimeout(r, 30 * 60 * 1000)); // Waits for 30 mins if the bot gets limited on twitter
         tweet();
     }
 }
@@ -48,14 +48,14 @@ setInterval(async function () {
         var res = await sheets.spreadsheets.values.get({
             auth: authClient,
             spreadsheetId: credentials.spreadsheetId,
-            range: "B" + (++data.rows) + ":E",              // !! might break
+            range: "B" + (data.rows) + ":E",
         });
 
         // Set rows to equal the rows
-        const rows = res.data.values;
+        var rows = res.data.values;
 
         // Check if we have any data and if we do add it to our formData array
-        if (typeof rows !== "undefined") {
+        if (typeof rows !== "undefined" || rows !== undefined) {
             // For each row
             for (i = 0; i < rows.length; i++) {
                 formData.push({
@@ -64,46 +64,48 @@ setInterval(async function () {
                     anonChoice: rows[i][2],
                     senderHandle: rows[i][3],
                 });
+
+                // Delete the used data
+                res = sheets.spreadsheets.values.batchClear({
+                    spreadsheetId: credentials.spreadsheetId,
+                    requestBody: {
+                        ranges: "A" + (data.rows+i) + ":E" + (data.rows+i),
+                    },
+                });
             }
-        } else {
-            console.log("No data found.");
-        }
 
-        for (i = 0; i < formData.length && i >= data.rows; i++) {
-            if (formData[i].anonChoice == "No") {
-                formData[i].senderHandle = "[anon]";
+            // tweet each row
+            for (i = 0; i < formData.length; i++) {
+                if (formData[i].anonChoice == "No") {
+                    formData[i].senderHandle = "[anon]";
+                }
+
+                if (typeof formData[i].receiverHandle !== "undefined" && typeof formData[i].msg !== "undefined") {
+                    const status =
+                        "from: " + formData[i].senderHandle +
+                        "\nto: " + formData[i].receiverHandle +
+                        "\n\n" + filter.clean(formData[i].msg);  
+    
+                    tweet(status);
+                }
             }
-
-            if (typeof formData[i].receiverHandle !== "undefined" || typeof formData[i].msg !== "undefined") {
-                const status =
-                    "from: " + formData[i].senderHandle +
-                    "\n to: " + formData[i].receiverHandle +
-                    "\n\n" + filter.clean(formData[i].msg);  
-
-                tweet(); // !! might not be working
-            }
-        }
-        
-        if (typeof rows !== "undefined") {
-            // Delete the used data
-            res = sheets.spreadsheets.values.batchClear({
-                spreadsheetId: credentials.spreadsheetId,
-                requestBody: {
-                    ranges: "A" + (++data.rows) + ":E" + rows.length,      // !! might break
-                },
-            });
-
+            
             // Storing the rows to a json file so the program can be restared at anytime
             fs.writeFileSync(
                 "data.json",
-                JSON.stringify({ rows: rows.length }),
+                JSON.stringify({ rows: data.rows + rows.length }),
                 function (err, file) {
                     if (err) throw err;
                 }
             );
+
+            rows = undefined;
+        } else {
+            console.log("No data found.");
         }
+
     } catch (error) {
         // Log the error
         console.log(error);
     }
-}, 20000); // 10 * 60 * 1000 Function repeats every ten minutes !! change
+}, 10 * 60 * 1000 ); // Function repeats every ten minutes
