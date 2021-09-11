@@ -5,6 +5,7 @@ const { TwitterClient } = require("twitter-api-client");
 const Filter = require("bad-words");
 const credentials = require("./credentials.json");
 const data = require("./data.json");
+const { PassThrough } = require("stream");
 
 // Configure twitter auth client
 const twitterClient = new TwitterClient({
@@ -81,12 +82,17 @@ setInterval(async function () {
                 }
 
                 if (typeof formData[i].receiverHandle !== "undefined" && typeof formData[i].msg !== "undefined") {
-                    const status =
-                        "from: " + formData[i].senderHandle +
-                        "\nto: " + formData[i].receiverHandle +
-                        "\n\n" + filter.clean(formData[i].msg);  
+                    if(new RegExp("([a-zA-Z0-9]+://)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\\.[A-Za-z]{2,4})(:[0-9]+)?(/.*)?").test(formData[i].senderHandle) || new RegExp("([a-zA-Z0-9]+://)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\\.[A-Za-z]{2,4})(:[0-9]+)?(/.*)?").test(formData[i].receiverHandle) || new RegExp("([a-zA-Z0-9]+://)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\\.[A-Za-z]{2,4})(:[0-9]+)?(/.*)?").test(formData[i].msg)) {
+                        // Checks if there are any links in the tweet
+                    } else {
+                        const status =
+                            "from: " + formData[i].senderHandle +
+                            "\nto: " + formData[i].receiverHandle +
+                            "\n\n" + filter.clean(formData[i].msg);  
     
-                    tweet(status);
+                        tweet(status);
+                    }
+
                 }
             }
             
