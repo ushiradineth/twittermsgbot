@@ -5,7 +5,6 @@ const { TwitterClient } = require("twitter-api-client");
 const Filter = require("bad-words");
 const credentials = require("./credentials.json");
 const data = require("./data.json");
-const { PassThrough } = require("stream");
 
 // Configure twitter auth client
 const twitterClient = new TwitterClient({
@@ -114,4 +113,4 @@ setInterval(async function () {
         // Log the error
         console.log(error);
     }
-}, 10 * 60 * 1000 ); // Function repeats every ten minutes
+},  10 * 60 * 1000 ); // Function repeats every ten minutes
